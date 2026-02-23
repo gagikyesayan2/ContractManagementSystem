@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ContractManagementSystem.Business/ContractManagementSystem.Business.csproj" />
+  <Project Path="ContractManagementSystem.Data/ContractManagementSystem.Data.csproj" />
+  <Project Path="ContractManagementSystem/ContractManagementSystem.API.csproj" />
+</Solution>
