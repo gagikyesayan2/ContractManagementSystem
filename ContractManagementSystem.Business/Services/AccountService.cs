@@ -8,13 +8,14 @@ using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Data.Repositories;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
 namespace ContractManagementSystem.Business.Services;
 
-public class AccountService(IRefreshTokenRepository refreshTokenRepository, IAccountRepository accountRepository, IMapper mapper, IOptions<JwtSettings> jwtOptions) : IAccountService
+public class AccountService(IRoleRepository roleRepository, IAccountRoleRepository accountRoleRepository, IRefreshTokenRepository refreshTokenRepository, IAccountRepository accountRepository, IMapper mapper, IOptions<JwtSettings> jwtOptions) : IAccountService
 {
     private readonly JwtSettings jwtSettings = jwtOptions.Value;
 
@@ -38,45 +39,55 @@ public class AccountService(IRefreshTokenRepository refreshTokenRepository, IAcc
         if (rows != 1)
             throw new Exception("Failed to create account.");
 
+        var employeeRoleId = await roleRepository.GetIdByNameAsync("Employee") ?? throw new Exception("Role not found.");
+
+        var accountRole = new AccountRole
+        {
+            AccountId = account.Id,
+            RoleId = employeeRoleId,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        var roleRows = await accountRoleRepository.AddAsync(accountRole);
+        if (roleRows != 1)
+            throw new Exception("Failed to assign role.");
 
         return rows;
+ 
     }
 
     public async Task<SignInResponseDto> SignInAsync(SignInRequestDto requestDto)
     {
-
         var normalizedEmail = requestDto.Email.Trim().ToLowerInvariant();
 
-        var accountEntity = await accountRepository.GetByEmailAsync(normalizedEmail) ?? throw new UnauthorizedAccessException("Invalid credentials.");
+        var accountEntity = await accountRepository.GetByEmailAsync(normalizedEmail)
+            ?? throw new UnauthorizedAccessException("Invalid credentials.");
 
         if (!PasswordHasher.Verify(requestDto.Password, accountEntity.PasswordHash))
             throw new UnauthorizedAccessException("Invalid credentials.");
 
-        var accessToken = GenerateAccessToken(accountEntity.Id);
-        string refreshToken;
+        var roles = await accountRepository.GetRoleNamesByAccountIdAsync(accountEntity.Id);
+        var accessToken = GenerateAccessToken(accountEntity.Id, roles);
 
-        var existingRefreshToken = await refreshTokenRepository.GetActiveByAccountIdAsync(accountEntity.Id);
-
-
-        if (existingRefreshToken != null && !existingRefreshToken.IsExpired && !existingRefreshToken.IsRevoked)
+        // OPTIONAL: revoke existing active token(s) for single-session behavior
+        var existing = await refreshTokenRepository.GetActiveByAccountIdAsync(accountEntity.Id);
+        if (existing is not null && !existing.IsExpired && !existing.IsRevoked)
         {
-            refreshToken = existingRefreshToken.TokenHash;
+            existing.Revoke();
+            await refreshTokenRepository.RevokeAsync(existing.Id, existing.RevokedAtUtc!.Value); // must update row
         }
-        else
-        {
-            refreshToken = GenerateRefreshToken();
-            var refreshTokenEntity = new RefreshToken
-            {
-                TokenHash = refreshToken,
-                AccountId = accountEntity.Id
-            };
-            await refreshTokenRepository.SaveAsync(refreshTokenEntity);
-       
-        }
-       
- 
-        return new SignInResponseDto { AccessToken = accessToken, RefreshToken = refreshToken};
 
+        var refreshToken = GenerateRefreshToken();
+        var refreshTokenEntity = new RefreshToken
+        {
+            TokenHash = refreshToken,
+            AccountId = accountEntity.Id,
+            CreatedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = DateTime.UtcNow.AddDays(30)
+        };
+
+        await refreshTokenRepository.SaveAsync(refreshTokenEntity);
+
+        return new SignInResponseDto { AccessToken = accessToken, RefreshToken = refreshToken };
     }
 
     public async Task<RefreshTokenResponseDto> ValidateRefreshTokenAsync(RefreshTokenRequestDto requestDto)
@@ -84,27 +95,34 @@ public class AccountService(IRefreshTokenRepository refreshTokenRepository, IAcc
         var oldRefreshToken = await refreshTokenRepository.GetByTokenHashId(requestDto.RefreshToken);
 
         if (oldRefreshToken is null || oldRefreshToken.IsExpired || oldRefreshToken.IsRevoked)
-        {
-            throw new UnauthorizedAccessException(
-            "Refresh token is invalid. Please sign in again.");
-        }
+            throw new UnauthorizedAccessException("Refresh token is invalid. Please sign in again.");
 
+        // revoke old and persist it
         oldRefreshToken.Revoke();
+        await refreshTokenRepository.RevokeAsync(oldRefreshToken.Id, oldRefreshToken.RevokedAtUtc!.Value); // must update row
+
+        // create new
+        var newTokenValue = GenerateRefreshToken();
+        var now = DateTime.UtcNow;
 
         var newRefreshToken = new RefreshToken
         {
-            TokenHash = GenerateRefreshToken(),
+            TokenHash = newTokenValue,
             AccountId = oldRefreshToken.AccountId,
+            CreatedAtUtc = now,
+            ExpiresAtUtc = now.AddDays(30)
         };
 
         await refreshTokenRepository.SaveAsync(newRefreshToken);
 
-        string newAccessToken = GenerateAccessToken(newRefreshToken.AccountId);
+        var roles = await accountRepository.GetRoleNamesByAccountIdAsync(oldRefreshToken.AccountId);
+        var newAccessToken = GenerateAccessToken(oldRefreshToken.AccountId, roles);
 
-
-        var responseDto = mapper.Map<RefreshTokenResponseDto>(newRefreshToken);
-        responseDto.AccessToken = newAccessToken;
-        return responseDto;
+        return new RefreshTokenResponseDto
+        {
+            AccessToken = newAccessToken,
+            RefreshToken = newTokenValue
+        };
     }
     private string GenerateRefreshToken()
     {
@@ -114,13 +132,17 @@ public class AccountService(IRefreshTokenRepository refreshTokenRepository, IAcc
         return Convert.ToBase64String(randomBytes);
     }
 
-    private string GenerateAccessToken(Guid userId)
+    private string GenerateAccessToken(Guid userId, List<string> roles)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
               new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-              new Claim(ClaimTypes.Role, "User")
+              //new Claim(ClaimTypes.Role, "User")
             };
+
+        foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))
+            claims.Add(new Claim(ClaimTypes.Role, role));
+
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 

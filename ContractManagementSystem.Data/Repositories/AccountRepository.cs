@@ -12,8 +12,8 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
     public async Task<int> CreateAsync(Account account)
     {
         const string sql = @"
-            INSERT INTO Accounts (Id, Email, PasswordHash, AccountType, CreatedAtUtc)
-            VALUES (@Id, @Email, @PasswordHash, @AccountType, @CreatedAtUtc);";
+            INSERT INTO Accounts (Id, Email, PasswordHash, CreatedAtUtc)
+            VALUES (@Id, @Email, @PasswordHash, @CreatedAtUtc);";
 
         using var connection = dbContext.CreateConnection();
         using var command = connection.CreateCommand();
@@ -23,7 +23,7 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
         command.Parameters.Add("@Email", SqlDbType.NVarChar, 256).Value = account.Email;
         command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 500).Value = account.PasswordHash;
         command.Parameters.Add("@CreatedAtUtc", SqlDbType.DateTime2).Value = account.CreatedAtUtc;
-        command.Parameters.Add("@AccountType", SqlDbType.Int).Value = (int)account.AccountType;
+    
 
         await connection.OpenAsync();
         var rows = await command.ExecuteNonQueryAsync();
@@ -33,7 +33,7 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
     public async Task<Account?> GetByEmailAsync(string email)
     {
         const string sql = @"
-        SELECT TOP 1 Id, Email, PasswordHash, AccountType, CreatedAtUtc
+        SELECT TOP 1 Id, Email, PasswordHash, CreatedAtUtc
         FROM Accounts
         WHERE Email = @Email;";
 
@@ -54,17 +54,16 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
             Id = reader.GetGuid(0),
             Email = reader.GetString(1),
             PasswordHash = reader.GetString(2),
-            AccountType = (AccountTypeEnum)reader.GetInt32(3),
-            CreatedAtUtc = reader.GetDateTime(4)
+            CreatedAtUtc = reader.GetDateTime(3)
         };
     }
     public async Task<int> SaveAsync(Account account)
     {
         const string sql = @"
         INSERT INTO Accounts 
-        (Id, Email, PasswordHash, AccountType, CreatedAtUtc)
+        (Id, Email, PasswordHash, CreatedAtUtc)
         VALUES 
-        (@Id, @Email, @PasswordHash, @AccountType, @CreatedAtUtc);";
+        (@Id, @Email, @PasswordHash, @CreatedAtUtc);";
 
         using var connection = dbContext.CreateConnection();
         using var command = connection.CreateCommand();
@@ -73,7 +72,6 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
         command.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = account.Id;
         command.Parameters.Add("@Email", SqlDbType.NVarChar, 256).Value = account.Email;
         command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 500).Value = account.PasswordHash;
-        command.Parameters.Add("@AccountType", SqlDbType.Int).Value = (int)account.AccountType;
         command.Parameters.Add("@CreatedAtUtc", SqlDbType.DateTime2).Value = account.CreatedAtUtc;
 
         await connection.OpenAsync();
@@ -83,6 +81,30 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
 
     }
 
-   
+    public async Task<List<string>> GetRoleNamesByAccountIdAsync(Guid accountId)
+    {
+        const string sql = @"
+        SELECT r.Name
+        FROM AccountRoles ar
+        INNER JOIN Roles r ON r.Id = ar.RoleId
+        WHERE ar.AccountId = @AccountId;";
+
+        using var connection = dbContext.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        command.Parameters.Add("@AccountId", SqlDbType.UniqueIdentifier).Value = accountId;
+
+        await connection.OpenAsync();
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var roles = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            roles.Add(reader.GetString(0));
+        }
+
+        return roles;
+    }
 
 }
