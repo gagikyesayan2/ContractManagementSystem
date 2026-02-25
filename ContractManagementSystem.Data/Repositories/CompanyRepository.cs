@@ -1,16 +1,41 @@
-﻿using ContractManagementSystem.Data.Entities;
+﻿using ContractManagementSystem.Data.Common;
+using ContractManagementSystem.Data.Entities;
 using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Data.Interfaces.Common;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Data.Common;
-
 namespace ContractManagementSystem.Data.Repositories;
 
 public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyRepository
 {
-    
-        public async Task<Guid> AddEmployeeAsync(Guid companyId,string employeeEmail,string employeePasswordHash,Guid createdByAdminAccountId,CancellationToken ct = default)
+
+    public async Task<bool> IsAdminAsync(Guid companyId, Guid accountId, CancellationToken ct)
+    {
+        const string sql = @"
+    SELECT 1
+    FROM CompanyAccounts ca
+    JOIN AccountRoles ar ON ar.AccountId = ca.AccountId
+    JOIN Roles r ON r.Id = ar.RoleId
+    WHERE ca.CompanyId = @CompanyId
+      AND ca.AccountId = @AccountId
+      AND r.Name = 'Admin';
+    ";
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync(ct);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+
+        DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+        DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, accountId);
+
+        var result = await cmd.ExecuteScalarAsync(ct);
+
+        return result != null;
+    }
+    public async Task<Guid> AddEmployeeAsync(Guid companyId,string employeeEmail,string employeePasswordHash,Guid createdByAdminAccountId, string firstName, string lastName, CancellationToken ct = default)
         {
             var now = DateTime.UtcNow;
             var employeeAccountId = Guid.NewGuid();
@@ -37,25 +62,27 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
                 )
             THROW 50001, 'Only company admin can register employees.', 1;";
 
-                await ExecuteNonQueryAsync(connection, tx, ensureAdminSql, ct, cmd =>
+                await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, ensureAdminSql, ct, cmd =>
                 {
-                    AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
-                    AddParam(cmd, "@AdminAccountId", DbType.Guid, createdByAdminAccountId);
-                    AddParam(cmd, "@AdminRoleName", DbType.String, "Admin");
+                    DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+                    DbCommandHelpers.AddParam(cmd, "@AdminAccountId", DbType.Guid, createdByAdminAccountId);
+                    DbCommandHelpers.AddParam(cmd, "@AdminRoleName", DbType.String, "Admin");
                 });
 
                 // 1) Insert Accounts (employee)
                 // relies on UNIQUE constraint on Accounts.Email
                 const string insertAccountSql = @"
-                INSERT INTO Accounts (Id, Email, PasswordHash, CreatedAtUtc)
-                VALUES (@Id, @Email, @PasswordHash, @CreatedAtUtc);";
+                INSERT INTO Accounts (Id, Email, PasswordHash, CreatedAtUtc, FirstName, LastName)
+                VALUES (@Id, @Email, @PasswordHash, @CreatedAtUtc, @FirstName, @LastName);";
 
-                await ExecuteNonQueryAsync(connection, tx, insertAccountSql, ct, cmd =>
+                await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertAccountSql, ct, cmd =>
                 {
-                    AddParam(cmd, "@Id", DbType.Guid, employeeAccountId);
-                    AddParam(cmd, "@Email", DbType.String, employeeEmail);
-                    AddParam(cmd, "@PasswordHash", DbType.String, employeePasswordHash);
-                    AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
+                    DbCommandHelpers.AddParam(cmd, "@Id", DbType.Guid, employeeAccountId);
+                    DbCommandHelpers.AddParam(cmd, "@Email", DbType.String, employeeEmail);
+                    DbCommandHelpers.AddParam(cmd, "@PasswordHash", DbType.String, employeePasswordHash);
+                    DbCommandHelpers.AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
+                    DbCommandHelpers.AddParam(cmd, "@FirstName", DbType.String, firstName);
+                    DbCommandHelpers.AddParam(cmd, "@LastName", DbType.String, lastName);
                 });
 
                 // 2) Insert CompanyAccounts
@@ -63,11 +90,11 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
                 INSERT INTO CompanyAccounts (CompanyId, AccountId, JoinedAtUtc)
                 VALUES (@CompanyId, @AccountId, @JoinedAtUtc);";
 
-                await ExecuteNonQueryAsync(connection, tx, insertCompanyAccountSql, ct, cmd =>
+                await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertCompanyAccountSql, ct, cmd =>
                 {
-                    AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
-                    AddParam(cmd, "@AccountId", DbType.Guid, employeeAccountId);
-                    AddParam(cmd, "@JoinedAtUtc", DbType.DateTime2, now);
+                    DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+                    DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, employeeAccountId);
+                    DbCommandHelpers.AddParam(cmd, "@JoinedAtUtc", DbType.DateTime2, now);
                 });
 
                 // 3) Get Employee RoleId
@@ -76,9 +103,9 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
                     FROM Roles
                     WHERE Name = @Name;";
 
-                var roleIdObj = await ExecuteScalarAsync(connection, tx, getEmployeeRoleSql, ct, cmd =>
+                var roleIdObj = await DbCommandHelpers.ExecuteScalarAsync(connection, tx, getEmployeeRoleSql, ct, cmd =>
                 {
-                    AddParam(cmd, "@Name", DbType.String, "Employee");
+                    DbCommandHelpers.AddParam(cmd, "@Name", DbType.String, "Employee");
                 });
 
                 if (roleIdObj is null || roleIdObj == DBNull.Value)
@@ -91,11 +118,11 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
                     INSERT INTO AccountRoles (AccountId, RoleId, CreatedAtUtc)
                     VALUES (@AccountId, @RoleId, @CreatedAtUtc);";
 
-                await ExecuteNonQueryAsync(connection, tx, insertAccountRoleSql, ct, cmd =>
+                await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertAccountRoleSql, ct, cmd =>
                 {
-                    AddParam(cmd, "@AccountId", DbType.Guid, employeeAccountId);
-                    AddParam(cmd, "@RoleId", DbType.Int32, employeeRoleId);
-                    AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
+                    DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, employeeAccountId);
+                    DbCommandHelpers.AddParam(cmd, "@RoleId", DbType.Int32, employeeRoleId);
+                    DbCommandHelpers.AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
                 });
 
                 await tx.CommitAsync(ct);
@@ -132,14 +159,14 @@ public async Task<Company> CreateWithAdminAsync(Company company, Guid creatorAcc
         {
             // 1️ Insert Company
             const string insertCompanySql = @"
-INSERT INTO Companies (Id, Name, CreatedAtUtc)
-VALUES (@Id, @Name, @CreatedAtUtc);";
+        INSERT INTO Companies (Id, Name, CreatedAtUtc)
+        VALUES (@Id, @Name, @CreatedAtUtc);";
 
-            await ExecuteNonQueryAsync(connection, tx, insertCompanySql, ct, cmd =>
+            await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertCompanySql, ct, cmd =>
             {
-                AddParam(cmd, "@Id", DbType.Guid, companyId);
-                AddParam(cmd, "@Name", DbType.String, company.Name);
-                AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
+                DbCommandHelpers.AddParam(cmd, "@Id", DbType.Guid, companyId);
+                DbCommandHelpers.AddParam(cmd, "@Name", DbType.String, company.Name);
+                DbCommandHelpers.AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
             });
 
             // 2️ Insert CompanyAccounts
@@ -147,34 +174,40 @@ VALUES (@Id, @Name, @CreatedAtUtc);";
 INSERT INTO CompanyAccounts (CompanyId, AccountId, JoinedAtUtc)
 VALUES (@CompanyId, @AccountId, @JoinedAtUtc);";
 
-            await ExecuteNonQueryAsync(connection, tx, insertCompanyAccountSql, ct, cmd =>
+            await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertCompanyAccountSql, ct, cmd =>
             {
-                AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
-                AddParam(cmd, "@AccountId", DbType.Guid, creatorAccountId);
-                AddParam(cmd, "@JoinedAtUtc", DbType.DateTime2, now);
+                DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+                DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, creatorAccountId);
+                DbCommandHelpers.AddParam(cmd, "@JoinedAtUtc", DbType.DateTime2, now);
             });
 
             // 3️ Get Admin RoleId
             const string getRoleSql = @"
 SELECT TOP (1) Id FROM Roles WHERE Name = @Name;";
 
-            var roleIdObj = await ExecuteScalarAsync(connection, tx, getRoleSql, ct, cmd =>
+            var roleIdObj = await DbCommandHelpers.ExecuteScalarAsync(connection, tx, getRoleSql, ct, cmd =>
             {
-                AddParam(cmd, "@Name", DbType.String, "Admin");
+                DbCommandHelpers.AddParam(cmd, "@Name", DbType.String, "Admin");
             });
 
             var adminRoleId = Convert.ToInt32(roleIdObj);
 
             // 4️ Insert AccountRoles
-            const string insertAccountRoleSql = @"
-INSERT INTO AccountRoles (AccountId, RoleId, CreatedAtUtc)
-VALUES (@AccountId, @RoleId, @CreatedAtUtc);";
+            const string insertAccountRoleSql = @"IF NOT EXISTS (
+                SELECT 1
+                FROM AccountRoles
+                WHERE AccountId = @AccountId AND RoleId = @RoleId
+            )
+            BEGIN
+                INSERT INTO AccountRoles (AccountId, RoleId, CreatedAtUtc)
+                VALUES (@AccountId, @RoleId, @CreatedAtUtc);
+            END";
 
-            await ExecuteNonQueryAsync(connection, tx, insertAccountRoleSql, ct, cmd =>
+            await DbCommandHelpers.ExecuteNonQueryAsync(connection, tx, insertAccountRoleSql, ct, cmd =>
             {
-                AddParam(cmd, "@AccountId", DbType.Guid, creatorAccountId);
-                AddParam(cmd, "@RoleId", DbType.Int32, adminRoleId);
-                AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
+                DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, creatorAccountId);
+                DbCommandHelpers.AddParam(cmd, "@RoleId", DbType.Int32, adminRoleId);
+                DbCommandHelpers.AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, now);
             });
 
             await tx.CommitAsync(ct);
@@ -189,40 +222,6 @@ VALUES (@AccountId, @RoleId, @CreatedAtUtc);";
             await tx.RollbackAsync(ct);
             throw;
         }
-    }
-
-private static async Task<int> ExecuteNonQueryAsync(DbConnection connection,DbTransaction tx,string sql,CancellationToken ct,Action<DbCommand> configure)
-    {
-        await using var cmd = connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = sql;
-        cmd.CommandType = CommandType.Text;
-
-        configure(cmd);
-
-        return await cmd.ExecuteNonQueryAsync(ct);
-    }
-
-private static async Task<object?> ExecuteScalarAsync(DbConnection connection,DbTransaction tx,string sql,CancellationToken ct,Action<DbCommand> configure)
-    {
-        await using var cmd = connection.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.CommandText = sql;
-        cmd.CommandType = CommandType.Text;
-
-        configure(cmd);
-
-        return await cmd.ExecuteScalarAsync(ct);
-    }
-
-private static void AddParam(DbCommand command, string name, DbType type, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.DbType = type;
-        parameter.Value = value;
-
-        command.Parameters.Add(parameter);
     }
 
 private static bool IsUniqueViolation(DbException ex)

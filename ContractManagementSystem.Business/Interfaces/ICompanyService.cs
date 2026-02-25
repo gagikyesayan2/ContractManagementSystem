@@ -1,4 +1,5 @@
 ﻿using ContractManagementSystem.Business.DTOs.Company;
+using ContractManagementSystem.Business.DTOs.Company.Employee;
 
 namespace ContractManagementSystem.Business.Interfaces;
 

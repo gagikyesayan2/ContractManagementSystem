@@ -8,10 +8,13 @@ public sealed class Contract : BaseEntity
     public Guid EmployeeAccountId { get; set; }
 
     public string Title { get; set; } = default!;
-    public string Description { get; set; } = default!;
+    public string ?Description { get; set; } = default!;
 
-    public DateTime EmploymentStartDate { get; set; }
-    public DateTime EmploymentEndDate { get; set; }
+    public DateOnly EmploymentStartDate { get; set; }
+    public DateOnly? EmploymentEndDate { get; set; }
 
     public decimal Wage { get; set; }
+
+    public string EmployeeFirstName { get; set; } = default!; // for joins (no real field)
+    public string EmployeeLastName { get; set; } = default!; // for joins (no real field)
 }

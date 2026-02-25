@@ -4,6 +4,7 @@ using ContractManagementSystem.Business.Interfaces;
 using ContractManagementSystem.Data.Entities;
 using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Business.Common.Security;
+using ContractManagementSystem.Business.DTOs.Company.Employee;
 namespace ContractManagementSystem.Business.Services;
 
 public sealed class CompanyService(ICompanyRepository companyRepository, IMapper mapper) : ICompanyService
@@ -33,13 +34,17 @@ public sealed class CompanyService(ICompanyRepository companyRepository, IMapper
                 requestDto.Email,
                 passwordHash,
                 adminAccountId,
+                requestDto.FirstName,
+                requestDto.LastName,
                 ct);
 
             return new RegisterEmployeeResponseDto
             {
                 EmployeeAccountId = employeeAccountId,
                 Email = requestDto.Email,
-                TemporaryPassword = tempPassword
+                TemporaryPassword = tempPassword,
+                FirstName = requestDto.FirstName,
+                LastName = requestDto.LastName
             };
         }
 

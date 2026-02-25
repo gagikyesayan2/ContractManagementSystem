@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using ContractManagementSystem.API.Extensions;
 using ContractManagementSystem.API.Models.Company;
+using ContractManagementSystem.API.Models.Company.Employee;
 using ContractManagementSystem.Business.DTOs;
 using ContractManagementSystem.Business.DTOs.Company;
+using ContractManagementSystem.Business.DTOs.Company.Employee;
 using ContractManagementSystem.Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

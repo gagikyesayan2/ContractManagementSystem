@@ -11,5 +11,8 @@ public sealed class SignUpRequestModel
 
     [Required]
     public string Password { get; set; } = default!;
+
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
 }
 

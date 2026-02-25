@@ -1,4 +1,5 @@
-﻿using ContractManagementSystem.Business.Interfaces;
+﻿using ContractManagementSystem.Application.Services;
+using ContractManagementSystem.Business.Interfaces;
 using ContractManagementSystem.Business.Services;
 using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Data.Repositories;
@@ -13,7 +14,8 @@ namespace ContractManagementSystem.Api.Extensions
         {
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<ICompanyService, CompanyService>();
-      
+            services.AddScoped<IContractService, ContractService>();
+
             return services;
 
         }
@@ -26,7 +28,7 @@ namespace ContractManagementSystem.Api.Extensions
             services.AddScoped<IAccountRoleRepository, AccountRoleRepository>();
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<IAccountRepository, AccountRepository>();
-            
+            services.AddScoped<IContractRepository, ContractRepository>();
             return services;
         }
     }

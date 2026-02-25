@@ -3,14 +3,19 @@ using ContractManagementSystem.API.Mapping;
 using ContractManagementSystem.Business.Mapping;
 using ContractManagementSystem.Data.Context;
 using ContractManagementSystem.Data.Interfaces.Common;
+using ContractManagementSystem.Api.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var cs = builder.Configuration.GetConnectionString("Default");
 
 
-builder.Services.AddControllers();
-
+builder.Services.AddControllers()
+ .AddJsonOptions(options =>
+  {
+      options.JsonSerializerOptions.Converters.Add(new DateOnlyJsonConverter());
+      options.JsonSerializerOptions.Converters.Add(new NullableDateOnlyJsonConverter());
+  });
 
 builder.Services.AddSingleton<IAppDbContext>(new AppDbContext(cs));
 

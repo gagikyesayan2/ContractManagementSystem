@@ -6,6 +6,7 @@ namespace ContractManagementSystem.Data.Interfaces;
 public interface ICompanyRepository
 {
     Task<Company> CreateWithAdminAsync(Company company, Guid AccountId, CancellationToken ct = default);
+    Task<bool> IsAdminAsync(Guid companyId, Guid accountId, CancellationToken ct);
 
-    Task<Guid> AddEmployeeAsync(Guid companyId, string employeeEmail, string employeePasswordHash, Guid createdByAdminAccountId, CancellationToken ct = default);
+    Task<Guid> AddEmployeeAsync(Guid companyId, string employeeEmail, string employeePasswordHash, Guid createdByAdminAccountId, string firstName, string lastName, CancellationToken ct = default);
 }

@@ -1,32 +1,33 @@
-﻿using ContractManagementSystem.Data.Entities;
-using ContractManagementSystem.Data.Enums;
+﻿using ContractManagementSystem.Data.Common;
+using ContractManagementSystem.Data.Entities;
 using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Data.Interfaces.Common;
-using Microsoft.Data.SqlClient;
 using System.Data;
 
 namespace ContractManagementSystem.Data.Repositories;
 
-public class AccountRepository(IAppDbContext dbContext): IAccountRepository
+public class AccountRepository(IAppDbContext dbContext) : IAccountRepository
 {
     public async Task<int> CreateAsync(Account account)
     {
         const string sql = @"
-            INSERT INTO Accounts (Id, Email, PasswordHash, CreatedAtUtc)
-            VALUES (@Id, @Email, @PasswordHash, @CreatedAtUtc);";
+            INSERT INTO Accounts (Id, Email, PasswordHash, CreatedAtUtc, FirstName, LastName)
+            VALUES (@Id, @Email, @PasswordHash, @CreatedAtUtc, @FirstName, @LastName);";
 
         using var connection = dbContext.CreateConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = sql;
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
 
-        command.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = account.Id;
-        command.Parameters.Add("@Email", SqlDbType.NVarChar, 256).Value = account.Email;
-        command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 500).Value = account.PasswordHash;
-        command.Parameters.Add("@CreatedAtUtc", SqlDbType.DateTime2).Value = account.CreatedAtUtc;
-    
+        DbCommandHelpers.AddParam(cmd, "@Id", DbType.Guid, account.Id);
+        DbCommandHelpers.AddParam(cmd, "@Email", DbType.String, account.Email);
+        DbCommandHelpers.AddParam(cmd, "@PasswordHash", DbType.String, account.PasswordHash);
+        DbCommandHelpers.AddParam(cmd, "@CreatedAtUtc", DbType.DateTime2, account.CreatedAtUtc);
+        DbCommandHelpers.AddParam(cmd, "@FirstName", DbType.String, account.FirstName);
+        DbCommandHelpers.AddParam(cmd, "@LastName", DbType.String, account.LastName);
+
 
         await connection.OpenAsync();
-        var rows = await command.ExecuteNonQueryAsync();
+        var rows = await cmd.ExecuteNonQueryAsync();
 
         return rows;
     }
@@ -41,7 +42,7 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
         using var command = connection.CreateCommand();
         command.CommandText = sql;
 
-        command.Parameters.Add("@Email", SqlDbType.NVarChar, 256).Value = email;
+        DbCommandHelpers.AddParam(command, "@Email", DbType.String, email, 256);
 
         await connection.OpenAsync();
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -61,23 +62,24 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
     {
         const string sql = @"
         INSERT INTO Accounts 
-        (Id, Email, PasswordHash, CreatedAtUtc)
-        VALUES 
-        (@Id, @Email, @PasswordHash, @CreatedAtUtc);";
+        (Id, Email, PasswordHash, CreatedAtUtc, FirstName, LastName)
+        VALUES
+        (@Id, @Email, @PasswordHash, @CreatedAtUtc, @FirstName, @LastName);";
 
         using var connection = dbContext.CreateConnection();
         using var command = connection.CreateCommand();
         command.CommandText = sql;
 
-        command.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = account.Id;
-        command.Parameters.Add("@Email", SqlDbType.NVarChar, 256).Value = account.Email;
-        command.Parameters.Add("@PasswordHash", SqlDbType.NVarChar, 500).Value = account.PasswordHash;
-        command.Parameters.Add("@CreatedAtUtc", SqlDbType.DateTime2).Value = account.CreatedAtUtc;
-
+        DbCommandHelpers.AddParam(command, "@Id", DbType.Guid, account.Id);
+        DbCommandHelpers.AddParam(command, "@Email", DbType.String, account.Email, 256);
+        DbCommandHelpers.AddParam(command, "@PasswordHash", DbType.String, account.PasswordHash, 500);
+        DbCommandHelpers.AddParam(command, "@CreatedAtUtc", DbType.DateTime2, account.CreatedAtUtc);
+        DbCommandHelpers.AddParam(command, "@FirstName", DbType.String, account.FirstName, 100);
+        DbCommandHelpers.AddParam(command, "@LastName", DbType.String, account.LastName, 100);
         await connection.OpenAsync();
         var rows = await command.ExecuteNonQueryAsync();
 
-       return await command.ExecuteNonQueryAsync();
+        return await command.ExecuteNonQueryAsync();
 
     }
 
@@ -93,7 +95,7 @@ public class AccountRepository(IAppDbContext dbContext): IAccountRepository
         using var command = connection.CreateCommand();
         command.CommandText = sql;
 
-        command.Parameters.Add("@AccountId", SqlDbType.UniqueIdentifier).Value = accountId;
+        DbCommandHelpers.AddParam(command, "@AccountId", DbType.Guid, accountId);
 
         await connection.OpenAsync();
         await using var reader = await command.ExecuteReaderAsync();

@@ -5,4 +5,5 @@ public class CreateCompanyResponseDto
     public string Name { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
+    public Guid CompanyId { get; set; }
 }
