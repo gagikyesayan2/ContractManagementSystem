@@ -16,6 +16,7 @@ public sealed class UpdateContractRequestModel
     [Required]
     public DateOnly? EmploymentEndDate { get; init; }
 
+    [Required]
     [Range(0.01, double.MaxValue)]
     public decimal Wage { get; init; }
 }

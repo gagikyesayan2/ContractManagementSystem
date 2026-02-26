@@ -1,5 +1,5 @@
 ﻿using ContractManagementSystem.Business.DTOs.Company.Contract;
-using ContractManagementSystem.Business.Enum;
+using ContractManagementSystem.Data.Enums;
 
 namespace ContractManagementSystem.Business.Interfaces;
 
@@ -9,9 +9,12 @@ public interface IContractService
     Task<bool> DeleteContractAsync(DeleteContractRequestDto requestDto, CancellationToken ct);
     Task<ContractListItemDto> EditContractAsync(Guid editedByAdminAccountId, UpdateContractRequestDto dto, CancellationToken ct);
 
-    //Task DeleteContractAsync(Guid deletedByAdminAccountId, Guid contractId);
+    Task<IReadOnlyList<ContractListItemDto>> GetAllContractsAsync(Guid requesterAccountId, Guid companyId);
 
-    //Task<IReadOnlyList<ContractListItemDto>> SearchContractsAsync(Guid requesterAccountId,Guid companyId,string? title,string? employeeFirstName,string? employeeLastName);
+    Task<IReadOnlyList<ContractListItemDto>> GetContractsByStatusAsync(Guid requesterAccountId, Guid companyId, string status);
 
-    //Task<IReadOnlyList<ContractListItemDto>> GetCompanyContractsAsync(Guid requesterAccountId,Guid companyId, ContractStatusFilter status);
+    Task<IReadOnlyList<ContractListItemDto>> SearchContractsAsync(ContractListItemDto requestDto, CancellationToken ct);
+
+
+    
 }

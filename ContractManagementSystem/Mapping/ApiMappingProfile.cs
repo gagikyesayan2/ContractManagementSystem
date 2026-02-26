@@ -56,9 +56,19 @@ public sealed class ApiMappingProfile : Profile
 
         // 2️⃣ Business → API (Update response)
         CreateMap<ContractListItemDto, UpdateContractResponseModel>();
-         
 
 
-    
+        CreateMap<ContractListItemDto, CreateContractResponseModel>();
+
+        // FilterContractModel -> ContractListItemDto (SEARCH REQUEST)
+        CreateMap<FilterContractModel, ContractListItemDto>()
+           
+            .ForMember(d => d.CompanyId, o => o.Ignore())
+          
+            .ForMember(d => d.Id, o => o.Ignore());
+
+        // ContractListItemDto -> CreateContractResponseModel (SEARCH RESPONSE)
+        // If your response model has fewer fields, AutoMapper will map matching names.
+        CreateMap<ContractListItemDto, CreateContractResponseModel>();
     }
 }

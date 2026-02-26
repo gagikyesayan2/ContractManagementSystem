@@ -12,18 +12,24 @@ using System.Security.Claims;
 
 namespace ContractManagementSystem.API.Controllers;
 
-
+[Authorize]
 [ApiController]
 [Route("api/companies")]
 public class CompanyController (ICompanyService companyService, IMapper mapper) : ControllerBase
 {
-    [Authorize]
+   
     [HttpPost("register-company")]
     public async Task<ActionResult<CreateCompanyResponseModel>> Create([FromBody] CreateCompanyRequestModel requestModel, CancellationToken ct)
     {
         var accountId = User.GetAccountId();
 
-       
+        var roleClaims = User.Claims
+            .Where(c => c.Type == ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToList();
+
+        Console.WriteLine("JWT Roles: " + string.Join(", ", roleClaims));
+
         var requestDto = mapper.Map<CreateCompanyRequestDto>(requestModel);
 
         var resultDto = await companyService.CreateCompanyAsync(requestDto, accountId, ct);
@@ -34,7 +40,7 @@ public class CompanyController (ICompanyService companyService, IMapper mapper) 
     }
 
 
-    [Authorize(Roles = "Admin")]
+   
     [HttpPost("{companyId:guid}/employees")]
     public async Task<ActionResult<RegisterEmployeeResponseModel>> RegisterEmployee(Guid companyId, [FromBody] RegisterEmployeeRequestModel requestModel,CancellationToken ct)
     {

@@ -57,8 +57,14 @@ public sealed class BusinessMappingProfile : Profile
         CreateMap<UpdateContractRequestDto, Contract>();
 
 
-       
         CreateMap<Contract, ContractListItemDto>();
 
+        // ContractListItemDto -> Contract (SEARCH FILTER ENTITY)
+        CreateMap<ContractListItemDto, Contract>()
+           .ForMember(d => d.Id, o => o.Ignore())
+            .ForMember(d => d.EmployeeAccountId, o => o.Ignore());
+
+        // Contract -> ContractListItemDto (SEARCH RESULT)
+        CreateMap<Contract, ContractListItemDto>();
     }
 }

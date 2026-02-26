@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="ClientSide/ClientSide.csproj" Id="66f3ef88-38d3-4a05-b79d-006b9d39a10b" />
   <Project Path="ContractManagementSystem.Business/ContractManagementSystem.Business.csproj" />
   <Project Path="ContractManagementSystem.Data/ContractManagementSystem.Data.csproj" />
   <Project Path="ContractManagementSystem/ContractManagementSystem.API.csproj" />

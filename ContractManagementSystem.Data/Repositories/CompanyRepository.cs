@@ -10,7 +10,33 @@ namespace ContractManagementSystem.Data.Repositories;
 public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyRepository
 {
 
-    public async Task<bool> IsAdminAsync(Guid companyId, Guid accountId, CancellationToken ct)
+public async Task<bool> IsValidEmployeeInCompany(Guid companyId, Guid accountId)
+{
+        const string sql = @"
+            SELECT 1
+            FROM CompanyAccounts
+            WHERE CompanyId = @CompanyId
+              AND AccountId = @AccountId;";
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync();
+
+        var result = await DbCommandHelpers.ExecuteScalarAsync(
+            connection,
+            tx: null,
+            sql: sql,
+            ct: CancellationToken.None,
+            configure: cmd =>
+            {
+                DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+                DbCommandHelpers.AddParam(cmd, "@AccountId", DbType.Guid, accountId);
+            });
+
+        return result != null;
+    }
+
+
+public async Task<bool> IsAdminAsync(Guid companyId, Guid accountId, CancellationToken ct)
     {
         const string sql = @"
     SELECT 1
@@ -35,7 +61,7 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
 
         return result != null;
     }
-    public async Task<Guid> AddEmployeeAsync(Guid companyId,string employeeEmail,string employeePasswordHash,Guid createdByAdminAccountId, string firstName, string lastName, CancellationToken ct = default)
+public async Task<Guid> AddEmployeeAsync(Guid companyId,string employeeEmail,string employeePasswordHash,Guid createdByAdminAccountId, string firstName, string lastName, CancellationToken ct = default)
         {
             var now = DateTime.UtcNow;
             var employeeAccountId = Guid.NewGuid();
@@ -140,9 +166,6 @@ public sealed class CompanyRepository(IAppDbContext dbContext) : ICompanyReposit
                 throw;
             }
         }
-
-
-
 
 public async Task<Company> CreateWithAdminAsync(Company company, Guid creatorAccountId, CancellationToken ct = default)
     {

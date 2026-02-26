@@ -15,6 +15,6 @@ public sealed class Contract : BaseEntity
 
     public decimal Wage { get; set; }
 
-    public string EmployeeFirstName { get; set; } = default!; // for joins (no real field)
-    public string EmployeeLastName { get; set; } = default!; // for joins (no real field)
+    public string? EmployeeFirstName { get; set; } = default!; // for joins (no real field)
+    public string? EmployeeLastName { get; set; } = default!; // for joins (no real field)
 }

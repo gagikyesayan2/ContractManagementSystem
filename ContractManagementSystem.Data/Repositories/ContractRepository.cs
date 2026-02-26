@@ -1,5 +1,6 @@
 ﻿using ContractManagementSystem.Data.Common;
 using ContractManagementSystem.Data.Entities;
+using ContractManagementSystem.Data.Enums;
 using ContractManagementSystem.Data.Interfaces;
 using ContractManagementSystem.Data.Interfaces.Common;
 using System.Data;
@@ -289,5 +290,280 @@ public class ContractRepository (IAppDbContext dbContext): IContractRepository
             throw;
         }
     }
+
+    public async Task<IReadOnlyList<Contract>> SearchAsync(Contract contract,
+        CancellationToken ct = default)
+    {
+        // contract.CompanyId = required
+        // contract.Title / EmployeeFirstName / EmployeeLastName = optional filters
+
+        const string sql = @"
+            SELECT
+                c.Id,
+                c.CompanyId,
+                c.EmployeeAccountId,
+                c.Title,
+                c.Description,
+                c.EmploymentStartDate,
+                c.EmploymentEndDate,
+                c.Wage,
+                c.CreatedAtUtc,
+                a.FirstName AS EmployeeFirstName,
+                a.LastName  AS EmployeeLastName
+            FROM Contracts c
+            JOIN Accounts a ON a.Id = c.EmployeeAccountId
+            WHERE c.CompanyId = @CompanyId
+            AND (
+                    (@Title     IS NOT NULL AND c.Title      LIKE '%' + @Title + '%')
+                 OR (@FirstName IS NOT NULL AND a.FirstName  LIKE '%' + @FirstName + '%')
+                 OR (@LastName  IS NOT NULL AND a.LastName   LIKE '%' + @LastName + '%')
+                     )
+            ORDER BY c.CreatedAtUtc DESC;";
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync(ct);
+
+        return await DbCommandHelpers.ExecuteReaderAsync(
+            connection,
+            tx: null,
+            sql: sql,
+            ct: ct,
+            configure: cmd =>
+            {
+                DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, contract.CompanyId);
+
+                // optional filters (can be null/empty)
+                DbCommandHelpers.AddParam(cmd, "@Title", DbType.String, (object?)contract.Title ?? DBNull.Value, size: 200);
+                DbCommandHelpers.AddParam(cmd, "@FirstName", DbType.String, (object?)contract.EmployeeFirstName ?? DBNull.Value, size: 100);
+                DbCommandHelpers.AddParam(cmd, "@LastName", DbType.String, (object?)contract.EmployeeLastName ?? DBNull.Value, size: 100);
+            },
+            mapAsync: async (reader, token) =>
+            {
+                var results = new List<Contract>();
+
+                // ordinals (fast + safe)
+                var oId = reader.GetOrdinal("Id");
+                var oCompanyId = reader.GetOrdinal("CompanyId");
+                var oEmployeeAccountId = reader.GetOrdinal("EmployeeAccountId");
+                var oTitle = reader.GetOrdinal("Title");
+                var oDescription = reader.GetOrdinal("Description");
+                var oStart = reader.GetOrdinal("EmploymentStartDate");
+                var oEnd = reader.GetOrdinal("EmploymentEndDate");
+                var oWage = reader.GetOrdinal("Wage");
+                var oCreatedAt = reader.GetOrdinal("CreatedAtUtc");
+                var oEmpFirst = reader.GetOrdinal("EmployeeFirstName");
+                var oEmpLast = reader.GetOrdinal("EmployeeLastName");
+
+                while (await reader.ReadAsync(token))
+                {
+                    results.Add(new Contract
+                    {
+                        Id = reader.GetGuid(oId),
+                        CompanyId = reader.GetGuid(oCompanyId),
+                        EmployeeAccountId = reader.GetGuid(oEmployeeAccountId),
+                        Title = reader.GetString(oTitle),
+                        Description = reader.IsDBNull(oDescription) ? null : reader.GetString(oDescription),
+
+                        // SQL 'date' comes as DateTime (00:00:00), convert to DateOnly
+                        EmploymentStartDate = DateOnly.FromDateTime(reader.GetDateTime(oStart)),
+                        EmploymentEndDate = reader.IsDBNull(oEnd)
+                            ? null
+                            : DateOnly.FromDateTime(reader.GetDateTime(oEnd)),
+
+                        Wage = reader.GetDecimal(oWage),
+                        CreatedAtUtc = reader.GetDateTime(oCreatedAt),
+
+                        // join-only fields
+                        EmployeeFirstName = reader.IsDBNull(oEmpFirst) ? "" : reader.GetString(oEmpFirst),
+                        EmployeeLastName = reader.IsDBNull(oEmpLast) ? "" : reader.GetString(oEmpLast),
+                    });
+                }
+
+                return results;
+            });
+    }
+
+
+    public async Task<IReadOnlyList<Contract>> GetAllByCompanyIdAsync(
+    Guid companyId,
+    CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT
+                c.Id,
+                c.CompanyId,
+                c.EmployeeAccountId,
+                c.Title,
+                c.Description,
+                c.EmploymentStartDate,
+                c.EmploymentEndDate,
+                c.Wage,
+                c.CreatedAtUtc,
+                a.FirstName AS EmployeeFirstName,
+                a.LastName  AS EmployeeLastName
+            FROM Contracts c
+            JOIN Accounts a ON a.Id = c.EmployeeAccountId
+            WHERE c.CompanyId = @CompanyId
+            ORDER BY c.CreatedAtUtc DESC;";
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync(ct);
+
+        return await DbCommandHelpers.ExecuteReaderAsync(
+            connection,
+            tx: null,
+            sql: sql,
+            ct: ct,
+            configure: cmd =>
+            {
+                DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+            },
+            mapAsync: async (reader, token) =>
+            {
+                var results = new List<Contract>();
+
+                var oId = reader.GetOrdinal("Id");
+                var oCompanyId = reader.GetOrdinal("CompanyId");
+                var oEmployeeAccountId = reader.GetOrdinal("EmployeeAccountId");
+                var oTitle = reader.GetOrdinal("Title");
+                var oDescription = reader.GetOrdinal("Description");
+                var oStart = reader.GetOrdinal("EmploymentStartDate");
+                var oEnd = reader.GetOrdinal("EmploymentEndDate");
+                var oWage = reader.GetOrdinal("Wage");
+                var oCreatedAt = reader.GetOrdinal("CreatedAtUtc");
+                var oEmpFirst = reader.GetOrdinal("EmployeeFirstName");
+                var oEmpLast = reader.GetOrdinal("EmployeeLastName");
+
+                while (await reader.ReadAsync(token))
+                {
+                    results.Add(new Contract
+                    {
+                        Id = reader.GetGuid(oId),
+                        CompanyId = reader.GetGuid(oCompanyId),
+                        EmployeeAccountId = reader.GetGuid(oEmployeeAccountId),
+                        Title = reader.GetString(oTitle),
+                        Description = reader.IsDBNull(oDescription) ? null : reader.GetString(oDescription),
+
+                        EmploymentStartDate = DateOnly.FromDateTime(reader.GetDateTime(oStart)),
+                        EmploymentEndDate = reader.IsDBNull(oEnd)
+                            ? null
+                            : DateOnly.FromDateTime(reader.GetDateTime(oEnd)),
+
+                        Wage = reader.GetDecimal(oWage),
+                        CreatedAtUtc = reader.GetDateTime(oCreatedAt),
+
+                        EmployeeFirstName = reader.IsDBNull(oEmpFirst) ? "" : reader.GetString(oEmpFirst),
+                        EmployeeLastName = reader.IsDBNull(oEmpLast) ? "" : reader.GetString(oEmpLast),
+                    });
+                }
+
+                return results;
+            });
+    }
+
+
+    public async Task<IReadOnlyList<Contract>> GetByStatusAsync(Guid companyId, ContractStatus status, CancellationToken ct = default)
+    {
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        string statusCondition = status switch
+        {
+            ContractStatus.NotStarted =>
+                "c.EmploymentStartDate > @Now",
+
+            ContractStatus.Active =>
+                @"c.EmploymentStartDate <= @Now
+              AND (c.EmploymentEndDate IS NULL
+                   OR c.EmploymentEndDate >= @Now)",
+
+            ContractStatus.Finished =>
+                @"c.EmploymentEndDate IS NOT NULL
+              AND c.EmploymentEndDate < @Now",
+
+            _ => throw new ArgumentOutOfRangeException(nameof(status))
+        };
+
+        var sql = $@"
+            SELECT
+                c.Id,
+                c.CompanyId,
+                c.EmployeeAccountId,
+                c.Title,
+                c.Description,
+                c.EmploymentStartDate,
+                c.EmploymentEndDate,
+                c.Wage,
+                c.CreatedAtUtc,
+                a.FirstName AS EmployeeFirstName,
+                a.LastName  AS EmployeeLastName
+            FROM Contracts c
+            JOIN Accounts a ON a.Id = c.EmployeeAccountId
+            WHERE c.CompanyId = @CompanyId
+              AND {statusCondition}
+            ORDER BY c.CreatedAtUtc DESC;";
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync(ct);
+
+        return await DbCommandHelpers.ExecuteReaderAsync(
+            connection,
+            tx: null,
+            sql: sql,
+            ct: ct,
+            configure: cmd =>
+            {
+                DbCommandHelpers.AddParam(cmd, "@CompanyId", DbType.Guid, companyId);
+                DbCommandHelpers.AddParam(cmd, "@Now", DbType.Date, now.ToDateTime(TimeOnly.MinValue));
+            },
+            mapAsync: async (reader, token) =>
+            {
+                var results = new List<Contract>();
+
+                var oId = reader.GetOrdinal("Id");
+                var oCompanyId = reader.GetOrdinal("CompanyId");
+                var oEmployeeAccountId = reader.GetOrdinal("EmployeeAccountId");
+                var oTitle = reader.GetOrdinal("Title");
+                var oDescription = reader.GetOrdinal("Description");
+                var oStart = reader.GetOrdinal("EmploymentStartDate");
+                var oEnd = reader.GetOrdinal("EmploymentEndDate");
+                var oWage = reader.GetOrdinal("Wage");
+                var oCreatedAt = reader.GetOrdinal("CreatedAtUtc");
+                var oEmpFirst = reader.GetOrdinal("EmployeeFirstName");
+                var oEmpLast = reader.GetOrdinal("EmployeeLastName");
+
+                while (await reader.ReadAsync(token))
+                {
+                    results.Add(new Contract
+                    {
+                        Id = reader.GetGuid(oId),
+                        CompanyId = reader.GetGuid(oCompanyId),
+                        EmployeeAccountId = reader.GetGuid(oEmployeeAccountId),
+                        Title = reader.GetString(oTitle),
+                        Description = reader.IsDBNull(oDescription) ? null : reader.GetString(oDescription),
+
+                        EmploymentStartDate =
+                            DateOnly.FromDateTime(reader.GetDateTime(oStart)),
+
+                        EmploymentEndDate = reader.IsDBNull(oEnd)
+                            ? null
+                            : DateOnly.FromDateTime(reader.GetDateTime(oEnd)),
+
+                        Wage = reader.GetDecimal(oWage),
+                        CreatedAtUtc = reader.GetDateTime(oCreatedAt),
+
+                        EmployeeFirstName =
+                            reader.IsDBNull(oEmpFirst) ? "" : reader.GetString(oEmpFirst),
+
+                        EmployeeLastName =
+                            reader.IsDBNull(oEmpLast) ? "" : reader.GetString(oEmpLast),
+                    });
+                }
+
+                return results;
+            });
+    }
+
+
+
 }
 

@@ -2,13 +2,12 @@
 using ContractManagementSystem.Business.Common.Security;
 using ContractManagementSystem.Business.Config;
 using ContractManagementSystem.Business.DTOs.Account;
+using ContractManagementSystem.Business.Exceptions.Common;
 using ContractManagementSystem.Business.Interfaces;
 using ContractManagementSystem.Data.Entities;
 using ContractManagementSystem.Data.Interfaces;
-using ContractManagementSystem.Data.Repositories;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -28,7 +27,7 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
         var existingEntity = await accountRepository.GetByEmailAsync(normalizedEmail);
 
         if (existingEntity is not null)
-            throw new InvalidOperationException("Email already exists.");
+            throw new ValidationAppException("Email already exists.");
 
         var account = mapper.Map<Account>(requestDto);
 
@@ -37,9 +36,9 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
 
         var rows = await accountRepository.CreateAsync(account);
         if (rows != 1)
-            throw new Exception("Failed to create account.");
+            throw new ValidationAppException("Failed to create account.");
 
-        var employeeRoleId = await roleRepository.GetIdByNameAsync("Employee") ?? throw new Exception("Role not found.");
+        var employeeRoleId = await roleRepository.GetIdByNameAsync("Employee") ?? throw new UnauthorizedAppException("Role not found.");
 
         var accountRole = new AccountRole
         {
@@ -49,10 +48,10 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
         };
         var roleRows = await accountRoleRepository.AddAsync(accountRole);
         if (roleRows != 1)
-            throw new Exception("Failed to assign role.");
+            throw new ValidationAppException("Failed to assign role.");
 
         return rows;
- 
+
     }
 
     public async Task<SignInResponseDto> SignInAsync(SignInRequestDto requestDto)
@@ -60,10 +59,10 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
         var normalizedEmail = requestDto.Email.Trim().ToLowerInvariant();
 
         var accountEntity = await accountRepository.GetByEmailAsync(normalizedEmail)
-            ?? throw new UnauthorizedAccessException("Invalid credentials.");
+            ?? throw new UnauthorizedAppException("Invalid credentials.");
 
         if (!PasswordHasher.Verify(requestDto.Password, accountEntity.PasswordHash))
-            throw new UnauthorizedAccessException("Invalid credentials.");
+            throw new UnauthorizedAppException("Invalid credentials.");
 
         var roles = await accountRepository.GetRoleNamesByAccountIdAsync(accountEntity.Id);
         var accessToken = GenerateAccessToken(accountEntity.Id, roles);
@@ -95,7 +94,7 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
         var oldRefreshToken = await refreshTokenRepository.GetByTokenHashId(requestDto.RefreshToken);
 
         if (oldRefreshToken is null || oldRefreshToken.IsExpired || oldRefreshToken.IsRevoked)
-            throw new UnauthorizedAccessException("Refresh token is invalid. Please sign in again.");
+            throw new ValidationAppException("Refresh token is invalid. Please sign in again.");
 
         // revoke old and persist it
         oldRefreshToken.Revoke();
@@ -137,7 +136,6 @@ public class AccountService(IRoleRepository roleRepository, IAccountRoleReposito
         var claims = new List<Claim>
         {
               new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-              //new Claim(ClaimTypes.Role, "User")
             };
 
         foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))

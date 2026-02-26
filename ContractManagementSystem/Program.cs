@@ -1,9 +1,10 @@
+using ContractManagementSystem.Api.Converters;
 using ContractManagementSystem.Api.Extensions;
 using ContractManagementSystem.API.Mapping;
+using ContractManagementSystem.API.Middleware;
 using ContractManagementSystem.Business.Mapping;
 using ContractManagementSystem.Data.Context;
 using ContractManagementSystem.Data.Interfaces.Common;
-using ContractManagementSystem.Api.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,9 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 
 
 var app = builder.Build();
+
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) { 
