@@ -48,5 +48,13 @@ public sealed class CompanyService(ICompanyRepository companyRepository, IMapper
             };
         }
 
-      
+    public async Task<IReadOnlyList<CreateCompanyResponseDto>> GetMyAdminCompaniesAsync(Guid adminAccountId, CancellationToken ct = default)
+    {
+        var entities = await companyRepository.GetCompaniesForAdminAsync(adminAccountId, ct);
+
+        if (entities is null || entities.Count == 0)
+            throw new UnauthorizedAccessException("You are not an admin of any company.");
+
+        return mapper.Map<IReadOnlyList<CreateCompanyResponseDto>>(entities);
+    }
 }

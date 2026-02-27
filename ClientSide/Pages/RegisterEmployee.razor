@@ -1,0 +1,113 @@
+﻿@page "/companies/{CompanyId:guid}/employees/register"
+@attribute [Authorize]
+@inject ClientSide.Services.CompanyApiService CompanyApi
+@inject NavigationManager Nav
+@using ContractManagementSystem.Shared.Models.Employee;
+
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudStack Spacing="2">
+
+        <MudText Typo="Typo.h6">Register employee</MudText>
+        <MudText Color="Color.Secondary">
+            Create employee for: <b>@_companyName</b>
+        </MudText>
+
+        <MudTextField Label="First name" @bind-Value="_firstName" />
+        <MudTextField Label="Last name" @bind-Value="_lastName" />
+        <MudTextField Label="Email" @bind-Value="_email" />
+
+        <MudStack Row="true" Spacing="2" Class="mt-2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="_isBusy"
+                       OnClick="Register">
+                Create
+            </MudButton>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Secondary"
+                       OnClick="@(() => Nav.NavigateTo("/companies"))">
+                Back
+            </MudButton>
+        </MudStack>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_success))
+        {
+            <MudAlert Severity="Severity.Success">@_success</MudAlert>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid CompanyId { get; set; }
+
+    private string _firstName = "";
+    private string _lastName = "";
+    private string _email = "";
+
+    private bool _isBusy;
+    private string? _error;
+    private string? _success;
+
+
+
+    private string _companyName = "Loading...";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // simplest: reuse your "my companies" list and find by id
+        var companies = await CompanyApi.GetMyCompaniesAsync();
+        var c = companies.FirstOrDefault(x => x.CompanyId == CompanyId);
+
+        _companyName = c?.Name ?? "(Unknown company)";
+    }
+
+    private async Task Register()
+    {
+        _error = null;
+        _success = null;
+
+        if (string.IsNullOrWhiteSpace(_firstName) ||
+            string.IsNullOrWhiteSpace(_lastName) ||
+            string.IsNullOrWhiteSpace(_email))
+        {
+            _error = "Fill all fields.";
+            return;
+        }
+
+        try
+        {
+            _isBusy = true;
+
+            // Use whatever request model you already have in Shared
+            var req = new RegisterEmployeeRequestModel
+            {
+                FirstName = _firstName.Trim(),
+                LastName = _lastName.Trim(),
+                Email = _email.Trim()
+            };
+
+            var res = await CompanyApi.RegisterEmployeeAsync(CompanyId, req);
+
+            _success = $"Employee created: {res.Email}. Temp password: {res.TemporaryPassword}";
+
+            _firstName = "";
+            _lastName = "";
+            _email = "";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

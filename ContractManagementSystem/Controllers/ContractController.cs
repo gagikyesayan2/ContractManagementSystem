@@ -1,14 +1,10 @@
 ﻿using AutoMapper;
 using ContractManagementSystem.API.Extensions;
-using ContractManagementSystem.API.Models.Company.Contract;
-using ContractManagementSystem.Application.Services;
+using ContractManagementSystem.Shared.Models.Company.Contract;
 using ContractManagementSystem.Business.DTOs.Company.Contract;
 using ContractManagementSystem.Business.Interfaces;
-using ContractManagementSystem.Data.Enums;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ContractManagementSystem.API.Controllers
 {
@@ -124,7 +120,7 @@ namespace ContractManagementSystem.API.Controllers
             var requestDto = mapper.Map<ContractListItemDto>(requestModel);
             requestDto.CompanyId = companyId;
 
-            var resultDto = await contractService.SearchContractsAsync(requestDto,ct);
+            var resultDto = await contractService.SearchContractsAsync(requestDto, ct);
             var resultModel = mapper.Map<IReadOnlyList<CreateContractResponseModel>>(resultDto);
             return Ok(resultModel);
 

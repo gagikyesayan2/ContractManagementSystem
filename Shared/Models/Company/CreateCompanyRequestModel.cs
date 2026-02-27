@@ -1,4 +1,4 @@
-﻿namespace ContractManagementSystem.API.Models.Company;
+﻿namespace ContractManagementSystem.Shared.Models.Company;
 
 public sealed class CreateCompanyRequestModel
 {

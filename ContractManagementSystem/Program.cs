@@ -10,6 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 var cs = builder.Configuration.GetConnectionString("Default");
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Client", p =>
+        p.WithOrigins("https://localhost:7061")   // Blazor WASM URL
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+    );
+});
 
 builder.Services.AddControllers()
  .AddJsonOptions(options =>
@@ -52,6 +60,8 @@ if (app.Environment.IsDevelopment()) {
 Console.WriteLine(app.Environment.EnvironmentName);
 
 app.UseHttpsRedirection();
+
+app.UseCors("Client");
 
 app.UseAuthentication();
 app.UseAuthorization();

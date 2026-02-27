@@ -1,0 +1,134 @@
+﻿@page "/companies"
+@attribute [Authorize]
+
+@using ContractManagementSystem.Shared.Models.Company
+@inject ClientSide.Services.CompanyApiService CompanyApi
+@inject NavigationManager Nav
+
+<MudGrid Spacing="3">
+
+    <!-- LEFT: create form -->
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.subtitle1">Create a company</MudText>
+
+            <MudTextField Label="Company name"
+                          @bind-Value="_name"
+                          Immediate="true"
+                          Class="mt-3" />
+
+            <MudButton Variant="Variant.Filled"
+                       Class="mt-3"
+                       Disabled="_isBusy"
+                       OnClick="CreateCompany">
+                Create
+            </MudButton>
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <!-- RIGHT: companies list -->
+    <MudItem xs="12" md="6">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">My companies</MudText>
+
+        @if (_isLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mb-3" />
+        }
+
+        @if (_companies.Count == 0 && !_isLoading)
+        {
+            <MudText Color="Color.Secondary" Class="mt-4">
+                No companies yet.
+            </MudText>
+        }
+        else
+        {
+            @foreach (var c in _companies)
+            {
+                <MudPaper Class="pa-4 mb-3" Elevation="1">
+                    <MudText><b>Name:</b> @c.Name</MudText>
+                    <MudText><b>CreatedAtUtc:</b> @c.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</MudText>
+                    <MudText><b>CompanyId:</b> @c.CompanyId</MudText>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               OnClick="@(() => GoRegisterEmployee(c.CompanyId))">
+                        Register employee
+                    </MudButton>
+                </MudPaper>
+            }
+        }
+    </MudItem>
+
+</MudGrid>
+
+@code {
+    private string _name = string.Empty;
+
+    private bool _isBusy;
+    private bool _isLoading;
+    private string? _error;
+
+    private List<CreateCompanyResponseModel> _companies = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanies();
+    }
+
+    private void GoRegisterEmployee(Guid companyId)
+       => Nav.NavigateTo($"/companies/{companyId}/employees/register");
+
+    private async Task LoadCompanies()
+    {
+        _error = null;
+
+        try
+        {
+            _isLoading = true;
+            _companies = await CompanyApi.GetMyCompaniesAsync();
+            // newest first (optional)
+            if (_companies.Count > 0)
+                _companies = _companies.OrderByDescending(x => x.CreatedAtUtc).ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateCompany()
+    {
+        _error = null;
+
+        try
+        {
+            _isBusy = true;
+
+            var req = new CreateCompanyRequestModel { Name = _name };
+            var created = await CompanyApi.RegisterCompanyAsync(req);
+
+            _companies.Insert(0, created);
+            _name = string.Empty;
+
+            // optional: re-sync from server if you want full truth
+            // await LoadCompanies();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

@@ -1,0 +1,150 @@
+﻿@page "/auth/create-account"
+@using ContractManagementSystem.Shared.Models.Account
+@inject ClientSide.Services.AuthApiClient AuthApi
+@inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ClientSide.Services.AuthStateService AuthState
+
+
+<MudPaper Class="pa-6 mx-auto mt-10" Style="max-width:520px;">
+    <MudText Typo="Typo.h5">Account</MudText>
+
+    <MudTabs Rounded="true" Elevation="0" PanelClass="pt-4" @bind-ActivePanelIndex="_tab">
+        <MudTabPanel Text="Sign in">
+            <MudTextField @bind-Value="_signIn.Email" Label="Email" Required="true" Immediate="true" />
+            <MudTextField @bind-Value="_signIn.Password" Label="Password" InputType="InputType.Password" Required="true" Immediate="true" />
+
+            <MudButton Class="mt-4"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="_busy"
+                       OnClick="OnSignIn">
+                Sign in
+            </MudButton>
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Sign up">
+            <MudTextField @bind-Value="_signUp.Email" Label="Email" Required="true" Immediate="true" />
+            <MudTextField @bind-Value="_signUp.Password" Label="Password" InputType="InputType.Password" Required="true" Immediate="true" />
+            <MudTextField @bind-Value="_confirmPassword" Label="Confirm password" InputType="InputType.Password" Required="true" Immediate="true" />
+
+            <MudButton Class="mt-4"
+                       Variant="Variant.Filled"
+                       Color="Color.Secondary"
+                       Disabled="_busy"
+                       OnClick="OnSignUp">
+                Create account
+            </MudButton>
+
+            @if (!string.IsNullOrWhiteSpace(_message))
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-4">@_message</MudAlert>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+            }
+        </MudTabPanel>
+    </MudTabs>
+</MudPaper>
+
+@code {
+    private int _tab = 0; // 0=signin, 1=signup
+    private bool _busy;
+    private string? _error;
+    private string? _message;
+
+    private readonly SignInRequestModel _signIn = new();
+    private readonly SignUpRequestModel _signUp = new();
+    private string _confirmPassword = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.RefreshAsync();
+
+        if (AuthState.IsAuthenticated)
+            Nav.NavigateTo("/", replace: true);
+    }
+
+    private async Task OnSignIn()
+    {
+        _error = null;
+        _message = null;
+
+        _signIn.Email = (_signIn.Email ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(_signIn.Email) || string.IsNullOrWhiteSpace(_signIn.Password))
+        {
+            _error = "Email and password are required.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await AuthApi.SignInAsync(_signIn);
+
+            // you are signed in now (tokens stored)
+            Nav.NavigateTo("/", replace: true);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnSignUp()
+    {
+        _error = null;
+        _message = null;
+
+        _signUp.Email = (_signUp.Email ?? "").Trim();
+
+        if (string.IsNullOrWhiteSpace(_signUp.Email) ||
+            string.IsNullOrWhiteSpace(_signUp.Password) ||
+            string.IsNullOrWhiteSpace(_confirmPassword))
+        {
+            _error = "All fields are required.";
+            return;
+        }
+
+        if (_signUp.Password != _confirmPassword)
+        {
+            _error = "Passwords do not match.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var result = await AuthApi.SignUpAsync(_signUp);
+
+            // Backend returns int → show message and switch to Sign in tab
+            _message = $"Account created (result: {result}). Now sign in.";
+            _tab = 0;
+
+            // optional: copy email into sign-in form
+            _signIn.Email = _signUp.Email;
+            _signIn.Password = "";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

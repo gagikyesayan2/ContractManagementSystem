@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ContractManagementSystem.API.Models.Company.Contract;
+namespace ContractManagementSystem.Shared.Models.Company.Contract;
 
 public sealed class UpdateContractRequestModel
 {

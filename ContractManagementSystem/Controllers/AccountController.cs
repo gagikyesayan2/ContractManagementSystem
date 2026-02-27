@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
-using ContractManagementSystem.API.Models.Account;
+
 using ContractManagementSystem.Business.DTOs.Account;
 using ContractManagementSystem.Business.Interfaces;
+using ContractManagementSystem.Shared.Models.Account;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 
 namespace ContractManagementSystem.API.Controllers;
 
@@ -15,6 +17,7 @@ public sealed class AccountsController(IAccountService accountService, IMapper m
     [AllowAnonymous]
     public async Task<ActionResult> SignUp([FromBody] SignUpRequestModel requestModel)
     {
+        
         var requestDto = mapper.Map<SignUpRequestDto>(requestModel);
         var result = await accountService.SignUpAsync(requestDto);
       
@@ -33,7 +36,7 @@ public sealed class AccountsController(IAccountService accountService, IMapper m
     }
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public async Task<ActionResult<RefreshResponseModel>> Refresh(
+    public async Task<ActionResult<RefreshTokenResponseModel>> Refresh(
     [FromBody] RefreshTokenRequestModel model)
     {
         if (string.IsNullOrWhiteSpace(model.RefreshToken))
@@ -43,7 +46,7 @@ public sealed class AccountsController(IAccountService accountService, IMapper m
 
         var resultDto = await accountService.ValidateRefreshTokenAsync(dto);
 
-        var resultModel = mapper.Map<RefreshResponseModel>(resultDto);
+        var resultModel = mapper.Map<RefreshTokenResponseModel>(resultDto);
 
         return Ok(resultModel);
     }

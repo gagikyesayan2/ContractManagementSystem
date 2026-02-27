@@ -1,13 +1,18 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ContractManagementSystem.API.Models.Account;
+namespace ContractManagementSystem.Shared.Models.Account;
 
-public sealed class SignInRequestModel
+public sealed class SignUpRequestModel
 {
 
     [Required]
     [EmailAddress]
     public string Email { get; set; } = default!;
+
     [Required]
     public string Password { get; set; } = default!;
+
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
 }
+

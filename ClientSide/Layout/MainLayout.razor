@@ -1,16 +1,78 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inject NavigationManager Nav
+@inject ClientSide.Services.AuthStateService AuthState
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ClientSide.Services.JwtAuthStateProvider _authProvider
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+<MudLayout>
+
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h6" Class="me-6" Style="cursor:pointer"
+                 @onclick="@(() => Nav.NavigateTo("/"))">
+            Contract Management
+        </MudText>
+
+        @if (AuthState.IsAuthenticated)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="@(() => Nav.NavigateTo("/"))">
+                Home
+            </MudButton>
+
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="@(() => Nav.NavigateTo("/companies"))">
+                Companies
+            </MudButton>
+
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="@(() => Nav.NavigateTo("/contracts"))">
+                Contracts
+            </MudButton>
+        }
+
+        <MudSpacer />
+
+        @if (!AuthState.IsAuthenticated)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Inherit"
+                       OnClick="@(() => Nav.NavigateTo("/auth/create-account"))">
+                Login / Sign up
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Logout">
+                Logout
+            </MudButton>
+        }
+    </MudAppBar>
+
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+
+</MudLayout>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        AuthState.OnChange += StateHasChanged;
+        await AuthState.RefreshAsync();
+    }
+
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("access_token");
+        await LocalStorage.RemoveItemAsync("refresh_token");
+
+        await AuthState.RefreshAsync();
+        _authProvider.NotifyAuthStateChanged();
+        Nav.NavigateTo("/auth/create-account");
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= StateHasChanged;
+    }
+}

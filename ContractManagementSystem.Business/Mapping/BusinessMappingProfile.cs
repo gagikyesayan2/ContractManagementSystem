@@ -66,5 +66,9 @@ public sealed class BusinessMappingProfile : Profile
 
         // Contract -> ContractListItemDto (SEARCH RESULT)
         CreateMap<Contract, ContractListItemDto>();
+
+
+        CreateMap<CreateCompanyResponseDto, Company>();
+      
     }
 }

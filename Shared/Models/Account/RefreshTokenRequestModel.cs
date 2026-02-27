@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-
-namespace ContractManagementSystem.API.Models.Account;
+namespace ContractManagementSystem.Shared.Models.Account;
 
 public class RefreshTokenRequestModel
 {

@@ -1,14 +1,16 @@
 ﻿
 using AutoMapper;
-using ContractManagementSystem.API.Models.Account;
-using ContractManagementSystem.API.Models.Company;
+
 using ContractManagementSystem.Business.DTOs.Account;
 using ContractManagementSystem.Business.DTOs.Company;
-using ContractManagementSystem.API.Models;
+using ContractManagementSystem.Shared.Models.Account;
+using ContractManagementSystem.Shared.Models.Company;
+using ContractManagementSystem.Shared.Models.Company.Contract;
+using ContractManagementSystem.Shared.Models.Employee;
+
 using ContractManagementSystem.Business.DTOs.Company.Contract;
 using ContractManagementSystem.Business.DTOs.Company.Employee;
-using ContractManagementSystem.API.Models.Company.Contract;
-using ContractManagementSystem.API.Models.Company.Employee;
+
 namespace ContractManagementSystem.API.Mapping;
 
 public sealed class ApiMappingProfile : Profile
@@ -37,7 +39,7 @@ public sealed class ApiMappingProfile : Profile
 
         CreateMap<RegisterEmployeeResponseDto, RegisterEmployeeResponseModel>();
 
-        CreateMap<RefreshTokenResponseDto, RefreshResponseModel>();
+        CreateMap<RefreshTokenResponseDto, RefreshTokenResponseModel>();
 
         // Contract
         CreateMap<CreateContractRequestModel, CreateContractRequestDto>();

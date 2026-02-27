@@ -1,4 +1,4 @@
-﻿namespace ContractManagementSystem.API.Models.Company.Employee;
+﻿namespace ContractManagementSystem.Shared.Models.Employee;
 
 public sealed class RegisterEmployeeResponseModel
 {

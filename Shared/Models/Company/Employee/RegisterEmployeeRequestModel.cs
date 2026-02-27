@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+namespace ContractManagementSystem.Shared.Models.Employee;
 
-namespace ContractManagementSystem.API.Models.Company.Employee;
 
 public sealed class RegisterEmployeeRequestModel
 {

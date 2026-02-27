@@ -249,4 +249,57 @@ SELECT TOP (1) Id FROM Roles WHERE Name = @Name;";
 
 private static bool IsUniqueViolation(DbException ex)
         => ex is SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627);
+
+    public async Task<IReadOnlyList<Company>> GetCompaniesForAdminAsync(Guid adminAccountId, CancellationToken ct)
+    {
+        // Returns ONLY companies where this account:
+        // 1) is a member (CompanyAccounts)
+        // 2) has Admin role (AccountRoles -> Roles)
+
+        const string sql = @"
+            SELECT DISTINCT
+                c.Id,
+                c.Name,
+                c.CreatedAtUtc
+            FROM Companies c
+            JOIN CompanyAccounts ca ON ca.CompanyId = c.Id
+            JOIN AccountRoles ar    ON ar.AccountId = ca.AccountId
+            JOIN Roles r            ON r.Id = ar.RoleId
+            WHERE ca.AccountId = @AdminAccountId
+              AND r.Name = 'Admin' 
+            ORDER BY c.CreatedAtUtc DESC;";
+
+        var companies = new List<Company>();
+
+        await using var connection = dbContext.CreateConnection();
+        await connection.OpenAsync(ct);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.CommandType = CommandType.Text;
+
+        DbCommandHelpers.AddParam(cmd, "@AdminAccountId", DbType.Guid, adminAccountId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+        var idOrdinal = reader.GetOrdinal("Id");
+        var nameOrdinal = reader.GetOrdinal("Name");
+        var createdAtOrdinal = reader.GetOrdinal("CreatedAtUtc");
+
+        while (await reader.ReadAsync(ct))
+        {
+            companies.Add(new Company
+            {
+                Id = reader.GetGuid(idOrdinal),
+                Name = reader.GetString(nameOrdinal),
+                CreatedAtUtc = reader.GetDateTime(createdAtOrdinal)
+            });
+        }
+
+        return companies;
+    }
+
+
 }
+
+

@@ -3,4 +3,5 @@
   <Project Path="ContractManagementSystem.Business/ContractManagementSystem.Business.csproj" />
   <Project Path="ContractManagementSystem.Data/ContractManagementSystem.Data.csproj" />
   <Project Path="ContractManagementSystem/ContractManagementSystem.API.csproj" />
+  <Project Path="Shared/Shared.csproj" Id="9b77bd02-9fe9-4917-998b-10e908774bcf" />
 </Solution>

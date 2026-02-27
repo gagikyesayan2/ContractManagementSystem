@@ -9,5 +9,6 @@ public interface ICompanyRepository
     Task<Company> CreateWithAdminAsync(Company company, Guid AccountId, CancellationToken ct = default);
     Task<bool> IsAdminAsync(Guid companyId, Guid accountId, CancellationToken ct);
 
+    Task<IReadOnlyList<Company>> GetCompaniesForAdminAsync(Guid adminAccountId, CancellationToken ct);
     Task<Guid> AddEmployeeAsync(Guid companyId, string employeeEmail, string employeePasswordHash, Guid createdByAdminAccountId, string firstName, string lastName, CancellationToken ct = default);
 }

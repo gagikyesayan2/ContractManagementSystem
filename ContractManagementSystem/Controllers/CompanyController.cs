@@ -1,11 +1,10 @@
 ﻿using AutoMapper;
 using ContractManagementSystem.API.Extensions;
-using ContractManagementSystem.API.Models.Company;
-using ContractManagementSystem.API.Models.Company.Employee;
-using ContractManagementSystem.Business.DTOs;
 using ContractManagementSystem.Business.DTOs.Company;
 using ContractManagementSystem.Business.DTOs.Company.Employee;
 using ContractManagementSystem.Business.Interfaces;
+using ContractManagementSystem.Shared.Models.Company;
+using ContractManagementSystem.Shared.Models.Employee;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -17,7 +16,19 @@ namespace ContractManagementSystem.API.Controllers;
 [Route("api/companies")]
 public class CompanyController (ICompanyService companyService, IMapper mapper) : ControllerBase
 {
-   
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("my-admin-companies")]
+    public async Task<ActionResult<IReadOnlyList<CreateCompanyResponseModel>>> GetMyAdminCompanies(CancellationToken ct)
+    {
+        var accountId = User.GetAccountId();
+
+        var companies = await companyService.GetMyAdminCompaniesAsync(accountId, ct);
+
+        return Ok(companies);
+    }
+
+    
     [HttpPost("register-company")]
     public async Task<ActionResult<CreateCompanyResponseModel>> Create([FromBody] CreateCompanyRequestModel requestModel, CancellationToken ct)
     {
@@ -40,7 +51,7 @@ public class CompanyController (ICompanyService companyService, IMapper mapper) 
     }
 
 
-   
+    [Authorize(Roles = "Admin")]
     [HttpPost("{companyId:guid}/employees")]
     public async Task<ActionResult<RegisterEmployeeResponseModel>> RegisterEmployee(Guid companyId, [FromBody] RegisterEmployeeRequestModel requestModel,CancellationToken ct)
     {
